@@ -3,11 +3,24 @@ const multer = require("multer");
 const cors = require("cors");
 const fs = require("fs");
 const axios = require("axios");
-const { raw } = require("body-parser");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  "https://ayotto-brain-ai-frontend-production.up.railway.app",
+  "http://localhost:5173"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
+}));
+
 app.use(express.json());
 
 const upload = multer({ dest: "uploads/" });
@@ -33,7 +46,7 @@ app.post("/generate", upload.single("image"), async (req, res) => {
             {
               text: `Analyze this image and extract multiple-choice questions (MCQs) exactly as they appear in the image. Maintain the original language and formatting.
 
-              - If the image contains a math/physics equation or complex diagram before the question, replace it with "[image]".
+              - If the image contains an stamp image before any question, replace it with "[image here]".
               - Ensure every question has at least one correct answer.
               - If reference text or explanation (solution) exists, include them.
               - Return ONLY raw JSON in this format:
@@ -51,9 +64,12 @@ app.post("/generate", upload.single("image"), async (req, res) => {
 
               Rules:
               1. Extract all MCQs, not just one.
-              2. Preserve exact wording.
+              2. Preserve exact wording. Keep the original language (do not translate)
               3. Keep all relevant details (diagrams = [image] if needed).
-              4. Return ONLY JSON, no explanations, no markdown.`
+              4. Return ONLY JSON, no explanations, no markdown or code blocks.
+              5. Return empty string for referenceText and solutionText if not applicable
+              6. Reference text can be inside []/(). Also, solutionText can be inside ব্যাখ্যা/Solution/Solve or any similar part
+              7. Create EXACT clones of question(s). Do not change anything`
             },
             {
               inlineData: {
